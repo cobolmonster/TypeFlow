@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TypeFlow</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg-primary:      #0a0a0a;
+    --bg-secondary:    #141414;
+    --bg-tertiary:     #202020;
+    --border-color:    #2e2e2e;
+    --text-primary:    #ffffff;
+    --text-secondary:  #b0b0b0;
+    --text-muted:      #555555;
+    --accent:          #ffffff;
+    --favorite:        #f5c518;
+    --highlight-bg:    #3a3a00;
+    --highlight-border:#6a6a00;
+    --error:           #f2545b;
+    --error-bg:        rgba(242, 84, 91, 0.12);
+    --transition:      all 0.18s ease;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+/* full-screen panels (language / load / difficulty / mode) */
+.center-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 3rem;
+    text-align: center;
+    position: relative;
+}
+
+.center-screen.active {
+    display: flex;
+    animation: screenIn 0.4s ease;
+}
+
+@keyframes screenIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.center-screen h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    margin-bottom: 0.6rem;
+    letter-spacing: -0.5px;
+}
+
+.center-screen .subtitle {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.center-screen .lead {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+    max-width: 560px;
+}
+
+.back-btn {
+    position: absolute;
+    top: 2rem; left: 2rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: var(--transition);
+}
+
+.back-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent);
+    color: var(--text-primary);
+    transform: translateX(-3px);
+}
+
+.back-btn:active { transform: translateX(-3px) scale(0.96); }
+
+/* language switch, pinned corner, available once a language is set */
+.lang-switch {
+    position: fixed;
+    top: 1.5rem; right: 1.5rem;
+    z-index: 500;
+    display: none;
+    gap: 0.4rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.3rem;
+}
+
+.lang-switch.visible { display: flex; }
+
+.lang-switch button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: var(--transition);
+}
+
+.lang-switch button:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.lang-switch button.active { background: var(--accent); color: var(--bg-primary); }
+
+/* language picker */
+.lang-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    max-width: 560px;
+    width: 100%;
+}
+
+.lang-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 2.25rem 1.5rem;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-primary);
+}
+
+.lang-card:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--favorite);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.5);
+}
+
+.lang-card:active { transform: translateY(-1px) scale(0.98); }
+
+.lang-card .code {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--favorite);
+    border: 1px solid var(--favorite);
+    border-radius: 20px;
+    padding: 0.2rem 0.7rem;
+    margin-bottom: 0.9rem;
+}
+
+.lang-card .name { font-size: 1.3rem; font-weight: 500; }
+
+/* dictionary load box */
+.load-box {
+    background: var(--bg-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 14px;
+    padding: 3rem 3.5rem;
+    max-width: 480px;
+    transition: var(--transition);
+}
+
+.load-box.drag-over {
+    border-color: var(--favorite);
+    background: var(--bg-tertiary);
+    transform: scale(1.015);
+}
+
+.load-box strong { font-size: 1.05rem; display: block; margin-bottom: 1.25rem; }
+
+.file-label {
+    display: inline-block;
+    padding: 0.875rem 2rem;
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: var(--transition);
+}
+
+.file-label:hover { background: var(--favorite); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(245,197,24,0.25); }
+.file-label:active { transform: translateY(0) scale(0.97); }
+
+.load-box small {
+    display: block;
+    margin-top: 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.load-error {
+    margin-top: 1.5rem;
+    color: var(--error);
+    font-size: 0.85rem;
+    animation: shakeChar 0.3s ease;
+}
+
+/* option grids (difficulty / mode) */
+.option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1.25rem;
+    max-width: 1040px;
+    width: 100%;
+}
+
+.option-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 1.6rem 1.5rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+    color: var(--text-primary);
+    position: relative;
+}
+
+.option-card:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+
+.option-card:active { transform: translateY(-1px) scale(0.98); }
+
+.option-card h3 { font-size: 1.05rem; font-weight: 500; margin-bottom: 0.4rem; }
+.option-card p { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
+
+.option-card .count-badge {
+    display: inline-block;
+    margin-top: 0.7rem;
+    font-size: 0.7rem;
+    color: var(--favorite);
+    background: rgba(245, 197, 24, 0.1);
+    padding: 0.2rem 0.6rem;
+    border-radius: 5px;
+}
+
+.option-card.advanced { border-color: var(--favorite); }
+.option-card.advanced h3 { color: var(--favorite); }
+
+.option-card.big-value h3 { font-size: 1.6rem; font-weight: 600; }
+
+.compound-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 2.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.compound-toggle input { width: 18px; height: 18px; cursor: pointer; }
+
+.mode-tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.3rem;
+    margin-bottom: 2.5rem;
+}
+
+.mode-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: var(--transition);
+}
+
+.mode-tab.active { background: var(--accent); color: var(--bg-primary); font-weight: 600; }
+
+/* modals */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.modal-overlay.open {
+    display: flex;
+    animation: overlayFade 0.2s ease;
+}
+
+@keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal-panel, .results-panel {
+    animation: panelIn 0.3s ease;
+}
+
+@keyframes panelIn {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2.5rem;
+    max-width: 560px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.modal-panel h2 { font-size: 1.6rem; font-weight: 400; margin-bottom: 1.5rem; }
+
+.filter-group { margin-bottom: 1.75rem; }
+
+.filter-group label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.813rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.slider-label .value { color: var(--favorite); font-weight: 600; }
+
+input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover { background: var(--favorite); transform: scale(1.2); }
+
+input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.checkbox-row { display: flex; align-items: center; gap: 0.6rem; }
+input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+.preview-count {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.preview-count strong { color: var(--favorite); }
+
+.modal-buttons { display: flex; gap: 1rem; margin-top: 2rem; }
+
+.modal-buttons button {
+    flex: 1;
+    padding: 0.875rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.938rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.apply-btn { background: var(--accent); color: var(--bg-primary); border: none; }
+.apply-btn:hover { background: var(--favorite); transform: translateY(-2px); }
+.apply-btn:active { transform: translateY(0) scale(0.97); }
+
+.cancel-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); }
+.cancel-btn:hover { background: var(--bg-tertiary); border-color: var(--accent); }
+
+/* test screen */
+#testScreen { display: none; flex-direction: column; min-height: 100vh; }
+#testScreen.active { display: flex; animation: screenIn 0.4s ease; }
+
+header {
+    padding: 1.25rem 7.5rem 1.25rem 3rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+header h1 { font-size: 1.15rem; font-weight: 400; }
+
+.header-controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.info-badge {
+    font-size: 0.78rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+}
+
+.header-controls button {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.4rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    transition: var(--transition);
+}
+
+.header-controls button:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.header-controls button:active { transform: scale(0.95); }
+
+.stats-bar {
+    padding: 1.5rem 3rem;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.stat-live { display: flex; gap: 2.5rem; }
+
+.stat-live .block { display: flex; flex-direction: column; }
+.stat-live .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem; }
+.stat-live .value { font-size: 1.6rem; font-weight: 300; transition: color 0.25s ease; }
+.stat-live .value.timer { color: var(--favorite); }
+.stat-live .value.timer.urgent { color: var(--error); animation: pulseUrgent 0.7s ease-in-out infinite; }
+
+@keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.type-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 3rem;
+    position: relative;
+}
+
+.word-flow-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    max-height: 9.5em;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+}
+
+.word-flow {
+    position: relative;
+    font-family: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 1.65rem;
+    line-height: 2.4em;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.word {
+    display: inline-block;
+    white-space: nowrap;
+    margin: 0 0.55em 0.2em 0;
+    border-radius: 4px;
+    padding: 1px 2px;
+    transition: opacity 0.25s ease;
+}
+
+.word.current { background: rgba(245, 197, 24, 0.07); box-shadow: inset 0 -2px 0 var(--favorite); }
+.word.done-correct { opacity: 0.4; animation: wordPulseOk 0.25s ease; }
+.word.done-error { opacity: 0.65; animation: wordShake 0.3s ease; }
+
+@keyframes wordPulseOk { 0% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes wordShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+}
+
+.char.pending { color: var(--text-muted); }
+.char.correct { color: var(--text-primary); animation: charIn 0.12s ease; }
+.char.incorrect { color: var(--error); background: var(--error-bg); border-radius: 2px; animation: shakeChar 0.18s ease; }
+.char.extra { color: var(--error); opacity: 0.75; text-decoration: line-through; }
+
+@keyframes charIn { from { transform: scale(1.35); } to { transform: scale(1); } }
+@keyframes shakeChar {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+.typing-cursor {
+    position: absolute;
+    width: 2px;
+    background: var(--favorite);
+    border-radius: 1px;
+    top: 0; left: 0;
+    transition: left 0.08s ease, top 0.08s ease, height 0.08s ease;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.15; } }
+
+.hidden-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.focus-overlay {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 10, 10, 0.85);
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.focus-overlay.show { display: flex; animation: overlayFade 0.2s ease; }
+
+.shortcuts {
+    padding: 0 3rem 2rem;
+    font-size: 0.813rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.shortcuts kbd {
+    background: var(--bg-tertiary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    font-family: monospace;
+    font-size: 0.75rem;
+    margin-right: 0.25rem;
+}
+
+.empty-pool {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.7;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* results */
+.results-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 2.5rem 2.75rem;
+    max-width: 620px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+}
+
+.results-hero { text-align: center; margin-bottom: 1.75rem; position: relative; }
+.results-hero .big-wpm { font-size: 4rem; font-weight: 200; line-height: 1; animation: charIn 0.3s ease; }
+.results-hero .big-wpm-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 0.4rem; }
+.results-hero .gross-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+.record-badge {
+    display: inline-block;
+    margin-top: 0.9rem;
+    background: rgba(245, 197, 24, 0.12);
+    color: var(--favorite);
+    border: 1px solid var(--favorite);
+    padding: 0.3rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    animation: starPop 0.4s ease;
+}
+
+@keyframes starPop { 0% { transform: scale(0.85); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+.wpm-chart { width: 100%; height: 90px; margin: 1.5rem 0; display: block; }
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.stat-item:nth-child(odd) { padding-right: 1.25rem; }
+.stat-item:nth-child(even) { padding-left: 1.25rem; border-left: 1px solid var(--border-color); }
+
+.stat-label { color: var(--text-secondary); font-size: 0.88rem; }
+.stat-value { color: var(--accent); font-weight: 600; font-size: 0.88rem; }
+
+.results-buttons { display: flex; gap: 0.85rem; margin-top: 2rem; flex-wrap: wrap; }
+.results-buttons button {
+    flex: 1;
+    min-width: 130px;
+    padding: 0.875rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.results-buttons .primary { background: var(--accent); color: var(--bg-primary); border: none; }
+.results-buttons .primary:hover { background: var(--favorite); transform: translateY(-2px); }
+.results-buttons .secondary { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); }
+.results-buttons .secondary:hover { background: var(--bg-tertiary); border-color: var(--accent); color: var(--text-primary); }
+.results-buttons button:active { transform: translateY(0) scale(0.97); }
+
+/* history */
+.history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.history-row .h-meta { color: var(--text-muted); font-size: 0.75rem; }
+.history-row .h-wpm { color: var(--favorite); font-weight: 600; }
+.history-empty { color: var(--text-muted); text-align: center; padding: 2rem 0; font-size: 0.9rem; }
+
+.close-modal {
+    margin-top: 1.75rem;
+    width: 100%;
+    padding: 0.875rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.close-modal:hover { background: var(--bg-tertiary); border-color: var(--accent); }
+
+@media (max-width: 768px) {
+    header { padding-left: 1.5rem; padding-right: 5.5rem; }
+    .stats-bar, .type-area, .shortcuts { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .word-flow { font-size: 1.3rem; line-height: 2.1em; }
+    .option-grid { grid-template-columns: 1fr; }
+    .modal-panel, .results-panel { padding: 1.5rem; }
+    .results-hero .big-wpm { font-size: 3rem; }
+    .stat-grid { grid-template-columns: 1fr; }
+    .stat-item:nth-child(even) { padding-left: 0; border-left: none; }
+    .stat-live { gap: 1.5rem; }
+    .lang-switch { top: 1rem; right: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="lang-switch" id="langSwitch">
+    <button id="langSwitchFr" onclick="setLanguage('fr')">FR</button>
+    <button id="langSwitchEn" onclick="setLanguage('en')">EN</button>
+</div>
+
+<!-- screen 0: interface language -->
+<div id="langScreen" class="center-screen active">
+    <h1>TypeFlow</h1>
+    <p class="lead">Choose your interface language — Choisissez la langue de l'interface</p>
+    <div class="lang-grid">
+        <div class="lang-card" onclick="setLanguage('fr')">
+            <span class="code">FR</span>
+            <div class="name">Français</div>
+        </div>
+        <div class="lang-card" onclick="setLanguage('en')">
+            <span class="code">EN</span>
+            <div class="name">English</div>
+        </div>
+    </div>
+</div>
+
+<!-- screen 1: word list import -->
+<div id="loadScreen" class="center-screen">
+    <h1>TypeFlow</h1>
+    <p class="lead" data-i18n="load_lead"></p>
+    <div class="load-box" id="dropZone">
+        <strong data-i18n="load_strong"></strong>
+        <label class="file-label">
+            <span data-i18n="load_file_label"></span>
+            <input type="file" accept=".txt" style="display:none;" id="fileInput" onchange="handleFileLoad(event)">
+        </label>
+        <small data-i18n="load_hint"></small>
+        <div class="load-error" id="loadError" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- screen 2: difficulty -->
+<div id="difficultyScreen" class="center-screen">
+    <h1 data-i18n="diff_title"></h1>
+    <p class="subtitle" id="dictSubtitle"></p>
+    <p class="lead" data-i18n="diff_lead"></p>
+
+    <label class="compound-toggle">
+        <input type="checkbox" id="compoundToggle" onchange="onCompoundToggle()">
+        <span data-i18n="compound_label"></span>
+    </label>
+
+    <div class="option-grid">
+        <button class="option-card" data-diff="easy" onclick="chooseDifficulty('easy')">
+            <h3 data-i18n="diff_easy_label"></h3>
+            <p data-i18n="diff_easy_desc"></p>
+            <span class="count-badge" data-count-for="easy">…</span>
+        </button>
+        <button class="option-card" data-diff="medium" onclick="chooseDifficulty('medium')">
+            <h3 data-i18n="diff_medium_label"></h3>
+            <p data-i18n="diff_medium_desc"></p>
+            <span class="count-badge" data-count-for="medium">…</span>
+        </button>
+        <button class="option-card" data-diff="hard" onclick="chooseDifficulty('hard')">
+            <h3 data-i18n="diff_hard_label"></h3>
+            <p data-i18n="diff_hard_desc"></p>
+            <span class="count-badge" data-count-for="hard">…</span>
+        </button>
+        <button class="option-card" data-diff="expert" onclick="chooseDifficulty('expert')">
+            <h3 data-i18n="diff_expert_label"></h3>
+            <p data-i18n="diff_expert_desc"></p>
+            <span class="count-badge" data-count-for="expert">…</span>
+        </button>
+        <button class="option-card" data-diff="mixed" onclick="chooseDifficulty('mixed')">
+            <h3 data-i18n="diff_mixed_label"></h3>
+            <p data-i18n="diff_mixed_desc"></p>
+            <span class="count-badge" data-count-for="mixed">…</span>
+        </button>
+        <button class="option-card advanced" onclick="openCustomModal()">
+            <h3 data-i18n="diff_custom_label"></h3>
+            <p data-i18n="diff_custom_desc"></p>
+        </button>
+    </div>
+</div>
+
+<!-- screen 3: test mode -->
+<div id="modeScreen" class="center-screen">
+    <button class="back-btn" data-i18n="mode_back" onclick="backToDifficulty()"></button>
+    <h1 data-i18n="mode_title"></h1>
+    <p class="subtitle" id="modeScreenSubtitle"></p>
+    <p class="lead" data-i18n="mode_lead"></p>
+
+    <div class="mode-tabs">
+        <button class="mode-tab active" id="tabTime" data-i18n="tab_time" onclick="switchModeTab('time')"></button>
+        <button class="mode-tab" id="tabWords" data-i18n="tab_words" onclick="switchModeTab('words')"></button>
+    </div>
+
+    <div class="option-grid" id="timeGrid">
+        <button class="option-card big-value" onclick="startTest('time',15)"><h3>15s</h3><p data-i18n="time_15_desc"></p></button>
+        <button class="option-card big-value" onclick="startTest('time',30)"><h3>30s</h3><p data-i18n="time_30_desc"></p></button>
+        <button class="option-card big-value" onclick="startTest('time',60)"><h3>60s</h3><p data-i18n="time_60_desc"></p></button>
+        <button class="option-card big-value" onclick="startTest('time',120)"><h3>120s</h3><p data-i18n="time_120_desc"></p></button>
+    </div>
+
+    <div class="option-grid" id="wordsGrid" style="display:none;">
+        <button class="option-card big-value" onclick="startTest('words',25)"><h3>25</h3><p data-i18n="words_unit"></p></button>
+        <button class="option-card big-value" onclick="startTest('words',50)"><h3>50</h3><p data-i18n="words_unit"></p></button>
+        <button class="option-card big-value" onclick="startTest('words',100)"><h3>100</h3><p data-i18n="words_unit"></p></button>
+        <button class="option-card big-value" onclick="startTest('words',200)"><h3>200</h3><p data-i18n="words_unit"></p></button>
+    </div>
+</div>
+
+<!-- custom difficulty modal -->
+<div id="customModal" class="modal-overlay">
+    <div class="modal-panel">
+        <h2 data-i18n="custom_title"></h2>
+        <div class="filter-group">
+            <label data-i18n="custom_word_length"></label>
+            <div class="slider-label">
+                <span data-i18n="custom_min"></span><span class="value" id="customMinValue">4</span>
+            </div>
+            <input type="range" id="customMin" min="1" max="24" value="4" oninput="updateCustomPreview()">
+            <div class="slider-label" style="margin-top:1rem;">
+                <span data-i18n="custom_max"></span><span class="value" id="customMaxValue">10</span>
+            </div>
+            <input type="range" id="customMax" min="1" max="24" value="10" oninput="updateCustomPreview()">
+        </div>
+        <div class="filter-group">
+            <div class="checkbox-row">
+                <input type="checkbox" id="customCompound" onchange="updateCustomPreview()">
+                <label style="margin:0;" data-i18n="custom_compound_label"></label>
+            </div>
+            <div class="preview-count" id="customPreview"></div>
+        </div>
+        <div class="modal-buttons">
+            <button class="cancel-btn" data-i18n="btn_cancel" onclick="closeCustomModal()"></button>
+            <button class="apply-btn" data-i18n="btn_apply" onclick="applyCustomDifficulty()"></button>
+        </div>
+    </div>
+</div>
+
+<!-- screen 4: test -->
+<div id="testScreen">
+    <header>
+        <h1>TypeFlow</h1>
+        <div class="header-controls">
+            <span class="info-badge" id="badgeDiff"></span>
+            <span class="info-badge" id="badgeMode"></span>
+            <button data-i18n="header_restart" onclick="restartSameConfig()"></button>
+            <button data-i18n="header_history" onclick="showHistory()"></button>
+            <button data-i18n="header_change" onclick="backToDifficulty()"></button>
+        </div>
+    </header>
+
+    <div class="stats-bar">
+        <div class="stat-live">
+            <div class="block">
+                <span class="label" id="progressLabel"></span>
+                <span class="value timer" id="progressValue">--</span>
+            </div>
+        </div>
+        <div class="stat-live">
+            <div class="block">
+                <span class="label" id="wpmLabel"></span>
+                <span class="value" id="liveWpm">0</span>
+            </div>
+            <div class="block">
+                <span class="label" id="accLabel"></span>
+                <span class="value" id="liveAcc">100%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="type-area">
+        <div class="word-flow-wrap" id="wordFlowWrap">
+            <div class="word-flow" id="wordFlow"></div>
+            <div class="typing-cursor" id="typingCursor"></div>
+            <input type="text" class="hidden-input" id="hiddenInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div class="focus-overlay" id="focusOverlay" onclick="resumeTyping()"><span data-i18n="focus_overlay_text"></span></div>
+        </div>
+    </div>
+
+    <div class="shortcuts">
+        <span><kbd>Tab</kbd> <span data-i18n="shortcut_restart"></span></span>
+        <span><kbd>Esc</kbd> <span data-i18n="shortcut_back"></span></span>
+        <span><kbd>Space</kbd> <span data-i18n="shortcut_next"></span></span>
+    </div>
+</div>
+
+<!-- results modal -->
+<div id="resultsModal" class="modal-overlay">
+    <div class="results-panel">
+        <div class="results-hero">
+            <div class="big-wpm" id="resWpm">0</div>
+            <div class="big-wpm-label" id="resUnitLabel"></div>
+            <div class="gross-note" id="resGross"></div>
+            <div id="resRecord"></div>
+        </div>
+
+        <div id="resChartContainer"></div>
+
+        <div class="stat-grid">
+            <div class="stat-item"><span class="stat-label" data-i18n="stat_accuracy"></span><span class="stat-value" id="resAcc">—</span></div>
+            <div class="stat-item"><span class="stat-label" data-i18n="stat_duration"></span><span class="stat-value" id="resDuration">—</span></div>
+            <div class="stat-item"><span class="stat-label" data-i18n="stat_correct_words"></span><span class="stat-value" id="resWords">—</span></div>
+            <div class="stat-item"><span class="stat-label" data-i18n="stat_chars_typed"></span><span class="stat-value" id="resChars">—</span></div>
+            <div class="stat-item"><span class="stat-label" data-i18n="stat_errors"></span><span class="stat-value" id="resErrors">—</span></div>
+            <div class="stat-item"><span class="stat-label" data-i18n="stat_best"></span><span class="stat-value" id="resBest">—</span></div>
+        </div>
+
+        <div class="results-buttons">
+            <button class="primary" data-i18n="header_restart" onclick="restartSameConfig()"></button>
+            <button class="secondary" data-i18n="btn_new_config" onclick="backToDifficulty()"></button>
+            <button class="secondary" data-i18n="btn_export" onclick="exportResult()"></button>
+        </div>
+    </div>
+</div>
+
+<!-- history modal -->
+<div id="historyModal" class="modal-overlay">
+    <div class="modal-panel">
+        <h2 data-i18n="history_title"></h2>
+        <div id="historyList"></div>
+        <button class="close-modal" data-i18n="btn_close" onclick="closeHistory()"></button>
+    </div>
+</div>
+
+<script>
+const I18N = {
+    en: {
+        load_lead: "Typing speed test based on your own word list",
+        load_strong: "Import your word list",
+        load_file_label: "Choose a .txt file",
+        load_hint: "You can also drag and drop the file here. Nothing is sent to a server — everything stays in your browser.",
+        load_error_not_txt: "Please select a .txt file",
+        load_error_empty: "This file looks empty or unreadable.",
+        load_error_read: "Something went wrong while reading the file.",
+        load_analyzing: "Analyzing word list…",
+        load_strong_default: "Import your word list",
+        diff_title: "Choose your level",
+        diff_subtitle: "{n} words loaded from your list",
+        diff_lead: "Difficulty is based on word length in your list",
+        compound_label: "Include compound words (with a hyphen or apostrophe, e.g. well-known)",
+        diff_easy_label: "Easy",
+        diff_easy_desc: "Short words — 3 to 5 letters",
+        diff_medium_label: "Medium",
+        diff_medium_desc: "Standard pace — 6 to 8 letters",
+        diff_hard_label: "Hard",
+        diff_hard_desc: "Long words — 9 to 11 letters",
+        diff_expert_label: "Expert",
+        diff_expert_desc: "Very long words — 12 letters and up",
+        diff_mixed_label: "Mixed",
+        diff_mixed_desc: "All lengths combined",
+        diff_custom_label: "Custom",
+        diff_custom_desc: "Set your own length range",
+        words_available: "{n} words available",
+        mode_back: "← Back",
+        mode_title: "Test mode",
+        mode_subtitle: "Level: {label}",
+        mode_lead: "Race against the clock or aim for a fixed word count",
+        tab_time: "Time",
+        tab_words: "Word count",
+        time_15_desc: "Quick sprint",
+        time_30_desc: "Short format",
+        time_60_desc: "Standard format",
+        time_120_desc: "Endurance format",
+        words_unit: "words",
+        custom_title: "Custom level",
+        custom_word_length: "Word length",
+        custom_min: "Minimum",
+        custom_max: "Maximum",
+        custom_compound_label: "Include compound words (hyphens, apostrophes)",
+        custom_preview: "{n} words match these criteria",
+        btn_cancel: "Cancel",
+        btn_apply: "Apply",
+        header_restart: "Restart",
+        header_history: "History",
+        header_change: "Change",
+        stat_time_left: "Time left",
+        stat_progress: "Progress",
+        stat_wpm: "WPM",
+        stat_accuracy_label: "Accuracy",
+        focus_overlay_text: "Click here to resume typing",
+        shortcut_restart: "Restart this test",
+        shortcut_back: "Back to settings",
+        shortcut_next: "Next word",
+        empty_pool_text: "No word matches these criteria.<br>Widen the length range or enable compound words.",
+        results_unit: "words per minute",
+        results_gross: "raw speed: {n} wpm",
+        results_record: "New personal record",
+        stat_accuracy: "Accuracy",
+        stat_duration: "Duration",
+        stat_correct_words: "Correct words",
+        stat_chars_typed: "Characters typed",
+        stat_errors: "Errors",
+        stat_best: "Best score (this config)",
+        btn_new_config: "New config",
+        btn_export: "Export",
+        history_title: "Test history",
+        history_empty: "No test recorded yet.",
+        btn_close: "Close",
+        export_title: "TypeFlow — test result",
+        export_date: "Date",
+        export_diff: "Difficulty",
+        export_mode: "Mode",
+        export_wpm: "Net words per minute",
+        export_acc: "Accuracy",
+        export_duration: "Duration",
+        export_words: "Correct words",
+        export_chars: "Characters typed",
+        export_errors: "Errors",
+        locale: "en-US",
+        mode_seconds: "{n} seconds"
+    },
+    fr: {
+        load_lead: "Test de vitesse de frappe basé sur votre propre liste de mots",
+        load_strong: "Importez votre liste de mots",
+        load_file_label: "Choisir un fichier .txt",
+        load_hint: "Vous pouvez aussi glisser-déposer le fichier ici. Rien n'est envoyé à un serveur — tout reste dans votre navigateur.",
+        load_error_not_txt: "Merci de sélectionner un fichier .txt",
+        load_error_empty: "Le fichier semble vide ou illisible.",
+        load_error_read: "Une erreur est survenue pendant la lecture du fichier.",
+        load_analyzing: "Analyse de la liste de mots…",
+        load_strong_default: "Importez votre liste de mots",
+        diff_title: "Choisissez votre niveau",
+        diff_subtitle: "{n} mots chargés depuis votre liste",
+        diff_lead: "La difficulté dépend de la longueur des mots de votre liste",
+        compound_label: "Inclure les mots composés (avec un tiret ou une apostrophe, ex. arc-en-ciel)",
+        diff_easy_label: "Facile",
+        diff_easy_desc: "Mots courts — 3 à 5 lettres",
+        diff_medium_label: "Moyen",
+        diff_medium_desc: "Rythme standard — 6 à 8 lettres",
+        diff_hard_label: "Difficile",
+        diff_hard_desc: "Mots longs — 9 à 11 lettres",
+        diff_expert_label: "Expert",
+        diff_expert_desc: "Mots très longs — 12 lettres et plus",
+        diff_mixed_label: "Mixte",
+        diff_mixed_desc: "Toutes longueurs mélangées",
+        diff_custom_label: "Personnalisé",
+        diff_custom_desc: "Définissez votre propre plage de longueurs",
+        words_available: "{n} mots disponibles",
+        mode_back: "← Retour",
+        mode_title: "Mode de test",
+        mode_subtitle: "Niveau : {label}",
+        mode_lead: "Testez-vous contre le temps ou sur un nombre de mots fixe",
+        tab_time: "Temps",
+        tab_words: "Nombre de mots",
+        time_15_desc: "Sprint rapide",
+        time_30_desc: "Format court",
+        time_60_desc: "Format standard",
+        time_120_desc: "Format endurance",
+        words_unit: "mots",
+        custom_title: "Niveau personnalisé",
+        custom_word_length: "Longueur des mots",
+        custom_min: "Minimum",
+        custom_max: "Maximum",
+        custom_compound_label: "Inclure les mots composés (tirets, apostrophes)",
+        custom_preview: "{n} mots correspondent à ces critères",
+        btn_cancel: "Annuler",
+        btn_apply: "Valider",
+        header_restart: "Recommencer",
+        header_history: "Historique",
+        header_change: "Changer",
+        stat_time_left: "Temps restant",
+        stat_progress: "Progression",
+        stat_wpm: "MPM",
+        stat_accuracy_label: "Précision",
+        focus_overlay_text: "Cliquez ici pour reprendre la saisie",
+        shortcut_restart: "Recommencer ce test",
+        shortcut_back: "Retour aux réglages",
+        shortcut_next: "Mot suivant",
+        empty_pool_text: "Aucun mot ne correspond à ces critères.<br>Élargissez la plage de longueurs ou activez les mots composés.",
+        results_unit: "mots par minute",
+        results_gross: "vitesse brute : {n} mpm",
+        results_record: "Nouveau record personnel",
+        stat_accuracy: "Précision",
+        stat_duration: "Durée",
+        stat_correct_words: "Mots corrects",
+        stat_chars_typed: "Caractères tapés",
+        stat_errors: "Erreurs",
+        stat_best: "Meilleur score (config)",
+        btn_new_config: "Nouvelle config",
+        btn_export: "Exporter",
+        history_title: "Historique des tests",
+        history_empty: "Aucun test enregistré pour le moment.",
+        btn_close: "Fermer",
+        export_title: "TypeFlow — résultat de test",
+        export_date: "Date",
+        export_diff: "Difficulté",
+        export_mode: "Mode",
+        export_wpm: "Mots par minute (net)",
+        export_acc: "Précision",
+        export_duration: "Durée",
+        export_words: "Mots corrects",
+        export_chars: "Caractères tapés",
+        export_errors: "Erreurs",
+        locale: "fr-FR",
+        mode_seconds: "{n} secondes"
+    }
+};
+
+let LANG = 'en';
+
+function t(key) {
+    const dict = I18N[LANG] || I18N.en;
+    return dict[key] !== undefined ? dict[key] : key;
+}
+
+function tf(key, vars) {
+    let s = t(key);
+    Object.keys(vars || {}).forEach(k => { s = s.replace('{' + k + '}', vars[k]); });
+    return s;
+}
+
+function setLanguage(lang) {
+    LANG = lang;
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+    document.getElementById('langSwitchFr').classList.toggle('active', lang === 'fr');
+    document.getElementById('langSwitchEn').classList.toggle('active', lang === 'en');
+    document.getElementById('langSwitch').classList.add('visible');
+    document.getElementById('progressLabel').textContent = modeType === 'time' ? t('stat_time_left') : t('stat_progress');
+    document.getElementById('wpmLabel').textContent = t('stat_wpm');
+    document.getElementById('accLabel').textContent = t('stat_accuracy_label');
+    document.getElementById('resUnitLabel').textContent = t('results_unit');
+    document.querySelector('#focusOverlay span').textContent = t('focus_overlay_text');
+
+    if (document.getElementById('langScreen').classList.contains('active')) {
+        document.getElementById('langScreen').classList.remove('active');
+        document.getElementById('loadScreen').classList.add('active');
+    } else if (totalWordsLoaded > 0 && document.getElementById('difficultyScreen').classList.contains('active')) {
+        refreshDifficultyCounts();
+        document.getElementById('dictSubtitle').textContent = tf('diff_subtitle', { n: fmt(totalWordsLoaded) });
+    } else if (document.getElementById('modeScreen').classList.contains('active')) {
+        refreshModeSubtitle();
+    }
+}
+
+/* word list parsing */
+
+const DIFFICULTIES = {
+    easy:   { min: 3,  max: 5  },
+    medium: { min: 6,  max: 8  },
+    hard:   { min: 9,  max: 11 },
+    expert: { min: 12, max: 99 },
+    mixed:  { min: 2,  max: 99 }
+};
+
+let byLengthAll = new Map();
+let byLengthPlain = new Map();
+let totalWordsLoaded = 0;
+let includeCompound = false;
+
+let currentDifficultyKey = 'medium';
+let customRange = { min: 4, max: 10, compound: false };
+let modeTab = 'time';
+let lastConfig = null;
+
+let testWords = [];
+let currentWordIndex = 0;
+let typedCurrent = '';
+let totalTypedChars = 0;
+let totalCorrectChars = 0;
+let totalErrors = 0;
+let wordsCorrectCount = 0;
+let wordsAttemptedCount = 0;
+
+let testState = 'idle';
+let modeType = 'time';
+let modeValue = 30;
+let startTimestamp = null;
+let pausedDuration = 0;
+let pauseStart = null;
+let isPaused = false;
+let lastSampledSecond = -1;
+let samples = [];
+let liveInterval = null;
+let lastTypedWord = '';
+
+function stripAccents(s) {
+    return s
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/œ/g, 'oe').replace(/Œ/g, 'OE')
+        .replace(/æ/g, 'ae').replace(/Æ/g, 'AE');
+}
+
+function parseWordlist(text) {
+    const lines = text.split(/\r?\n/);
+    const seen = new Set();
+    byLengthAll = new Map();
+    byLengthPlain = new Map();
+    totalWordsLoaded = 0;
+
+    for (const raw of lines) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
+        const low = stripAccents(trimmed.toLowerCase());
+        if (seen.has(low)) continue;
+        seen.add(low);
+        if (low.length < 2) continue;
+
+        const len = low.length;
+        const special = /[-']/.test(low);
+
+        if (!byLengthAll.has(len)) byLengthAll.set(len, []);
+        byLengthAll.get(len).push(low);
+
+        if (!special) {
+            if (!byLengthPlain.has(len)) byLengthPlain.set(len, []);
+            byLengthPlain.get(len).push(low);
+        }
+        totalWordsLoaded++;
+    }
+}
+
+function getPool(min, max, withCompound) {
+    const map = withCompound ? byLengthAll : byLengthPlain;
+    let pool = [];
+    for (let l = min; l <= max; l++) {
+        if (map.has(l)) pool = pool.concat(map.get(l));
+    }
+    return pool;
+}
+
+function getPoolSize(min, max, withCompound) {
+    const map = withCompound ? byLengthAll : byLengthPlain;
+    let n = 0;
+    for (let l = min; l <= max; l++) {
+        if (map.has(l)) n += map.get(l).length;
+    }
+    return n;
+}
+
+function fmt(n) { return n.toLocaleString(t('locale')); }
+
+/* file loading */
+
+function showLoadError(msg) {
+    const el = document.getElementById('loadError');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function handleFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    loadFile(file);
+}
+
+function loadFile(file) {
+    if (!file.name.toLowerCase().endsWith('.txt')) {
+        showLoadError(t('load_error_not_txt'));
+        return;
+    }
+    const box = document.querySelector('.load-box');
+    box.querySelector('strong').textContent = t('load_analyzing');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        setTimeout(() => {
+            parseWordlist(e.target.result);
+            if (totalWordsLoaded === 0) {
+                box.querySelector('strong').textContent = t('load_strong_default');
+                showLoadError(t('load_error_empty'));
+                return;
+            }
+            goToDifficultyScreen();
+        }, 30);
+    };
+    reader.onerror = () => showLoadError(t('load_error_read'));
+    reader.readAsText(file, 'UTF-8');
+}
+
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+
+/* screen navigation */
+
+function hideAllScreens() {
+    document.getElementById('loadScreen').classList.remove('active');
+    document.getElementById('difficultyScreen').classList.remove('active');
+    document.getElementById('modeScreen').classList.remove('active');
+    document.getElementById('testScreen').classList.remove('active');
+}
+
+function goToDifficultyScreen() {
+    hideAllScreens();
+    document.getElementById('difficultyScreen').classList.add('active');
+    document.getElementById('dictSubtitle').textContent = tf('diff_subtitle', { n: fmt(totalWordsLoaded) });
+    document.getElementById('compoundToggle').checked = includeCompound;
+    refreshDifficultyCounts();
+}
+
+function onCompoundToggle() {
+    includeCompound = document.getElementById('compoundToggle').checked;
+    refreshDifficultyCounts();
+}
+
+function refreshDifficultyCounts() {
+    document.querySelectorAll('[data-count-for]').forEach(el => {
+        const key = el.getAttribute('data-count-for');
+        const d = DIFFICULTIES[key];
+        const n = getPoolSize(d.min, d.max, includeCompound);
+        el.textContent = tf('words_available', { n: fmt(n) });
+    });
+}
+
+function chooseDifficulty(key) {
+    currentDifficultyKey = key;
+    goToModeScreen();
+}
+
+function difficultyLabel(key, range) {
+    if (key === 'custom') return `${t('diff_custom_label')} (${range.min}-${range.max})`;
+    return t('diff_' + key + '_label');
+}
+
+function refreshModeSubtitle() {
+    const label = currentDifficultyKey === 'custom' ? difficultyLabel('custom', customRange) : difficultyLabel(currentDifficultyKey);
+    document.getElementById('modeScreenSubtitle').textContent = tf('mode_subtitle', { label });
+}
+
+function goToModeScreen() {
+    hideAllScreens();
+    document.getElementById('modeScreen').classList.add('active');
+    refreshModeSubtitle();
+    switchModeTab(modeTab);
+}
+
+function backToDifficulty() {
+    closeResultsIfOpen();
+    goToDifficultyScreen();
+}
+
+function switchModeTab(tab) {
+    modeTab = tab;
+    document.getElementById('tabTime').classList.toggle('active', tab === 'time');
+    document.getElementById('tabWords').classList.toggle('active', tab === 'words');
+    document.getElementById('timeGrid').style.display = tab === 'time' ? 'grid' : 'none';
+    document.getElementById('wordsGrid').style.display = tab === 'words' ? 'grid' : 'none';
+}
+
+/* custom difficulty modal */
+
+function openCustomModal() {
+    document.getElementById('customMin').value = customRange.min;
+    document.getElementById('customMax').value = customRange.max;
+    document.getElementById('customCompound').checked = customRange.compound;
+    updateCustomPreview();
+    document.getElementById('customModal').classList.add('open');
+}
+
+function closeCustomModal() {
+    document.getElementById('customModal').classList.remove('open');
+}
+
+function updateCustomPreview() {
+    let min = parseInt(document.getElementById('customMin').value);
+    let max = parseInt(document.getElementById('customMax').value);
+    if (min > max) { max = min; document.getElementById('customMax').value = max; }
+    document.getElementById('customMinValue').textContent = min;
+    document.getElementById('customMaxValue').textContent = max;
+    const compound = document.getElementById('customCompound').checked;
+    const n = getPoolSize(min, max, compound);
+    document.getElementById('customPreview').innerHTML = tf('custom_preview', { n: `<strong>${fmt(n)}</strong>` });
+}
+
+function applyCustomDifficulty() {
+    const min = parseInt(document.getElementById('customMin').value);
+    const max = parseInt(document.getElementById('customMax').value);
+    const compound = document.getElementById('customCompound').checked;
+    customRange = { min, max, compound };
+    currentDifficultyKey = 'custom';
+    closeCustomModal();
+    goToModeScreen();
+}
+
+/* test setup */
+
+function activePool() {
+    if (currentDifficultyKey === 'custom') {
+        return getPool(customRange.min, customRange.max, customRange.compound);
+    }
+    const d = DIFFICULTIES[currentDifficultyKey];
+    return getPool(d.min, d.max, includeCompound);
+}
+
+function pickWord(pool) {
+    let w, attempts = 0;
+    do {
+        w = pool[Math.floor(Math.random() * pool.length)];
+        attempts++;
+    } while (w === lastTypedWord && pool.length > 1 && attempts < 6);
+    lastTypedWord = w;
+    return w;
+}
+
+function generateWords(pool, count) {
+    const arr = [];
+    for (let i = 0; i < count; i++) arr.push(pickWord(pool));
+    return arr;
+}
+
+function startTest(type, value) {
+    const pool = activePool();
+    if (pool.length === 0) {
+        document.getElementById('wordFlow').innerHTML = '';
+        hideAllScreens();
+        document.getElementById('testScreen').classList.add('active');
+        document.querySelector('.type-area').innerHTML = `<div class="empty-pool">${t('empty_pool_text')}</div>`;
+        return;
+    }
+
+    modeType = type;
+    modeValue = value;
+    lastConfig = { diffKey: currentDifficultyKey, customRange: { ...customRange }, modeType: type, modeValue: value, includeCompound };
+
+    const initialCount = type === 'words' ? value : 60;
+    testWords = generateWords(pool, initialCount);
+
+    currentWordIndex = 0;
+    typedCurrent = '';
+    totalTypedChars = 0;
+    totalCorrectChars = 0;
+    totalErrors = 0;
+    wordsCorrectCount = 0;
+    wordsAttemptedCount = 0;
+    testState = 'idle';
+    startTimestamp = null;
+    pausedDuration = 0;
+    isPaused = false;
+    lastSampledSecond = -1;
+    samples = [];
+
+    hideAllScreens();
+    document.getElementById('testScreen').classList.add('active');
+
+    document.getElementById('badgeDiff').textContent = currentDifficultyKey === 'custom'
+        ? difficultyLabel('custom', customRange)
+        : difficultyLabel(currentDifficultyKey);
+    document.getElementById('badgeMode').textContent = type === 'time' ? `${value}s` : `${value} ${t('words_unit')}`;
+
+    document.getElementById('progressLabel').textContent = type === 'time' ? t('stat_time_left') : t('stat_progress');
+    document.getElementById('progressValue').textContent = type === 'time' ? `${value}s` : `0 / ${value}`;
+    document.getElementById('progressValue').classList.remove('urgent');
+    document.getElementById('liveWpm').textContent = '0';
+    document.getElementById('liveAcc').textContent = '100%';
+
+    renderFullWordFlow();
+    positionCursor();
+
+    const input = document.getElementById('hiddenInput');
+    input.value = '';
+    document.getElementById('focusOverlay').classList.remove('show');
+    setTimeout(() => input.focus(), 30);
+}
+
+function restartSameConfig() {
+    if (!lastConfig) return;
+    currentDifficultyKey = lastConfig.diffKey;
+    customRange = { ...lastConfig.customRange };
+    includeCompound = lastConfig.includeCompound;
+    closeResultsIfOpen();
+    startTest(lastConfig.modeType, lastConfig.modeValue);
+}
+
+function closeResultsIfOpen() {
+    document.getElementById('resultsModal').classList.remove('open');
+}
+
+/* typing area rendering */
+
+function renderFullWordFlow() {
+    const flow = document.getElementById('wordFlow');
+    let html = '';
+    for (let i = 0; i < testWords.length; i++) {
+        html += `<span class="word" id="word-${i}">`;
+        const w = testWords[i];
+        for (let j = 0; j < w.length; j++) {
+            html += `<span class="char pending">${escapeHtml(w[j])}</span>`;
+        }
+        html += `</span>`;
+    }
+    flow.innerHTML = html;
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderCurrentWord() {
+    const wordEl = document.getElementById('word-' + currentWordIndex);
+    if (!wordEl) return;
+    const word = testWords[currentWordIndex];
+    let html = '';
+    const len = Math.max(word.length, typedCurrent.length);
+    for (let i = 0; i < len; i++) {
+        if (i < word.length) {
+            let cls = 'pending';
+            if (i < typedCurrent.length) cls = (typedCurrent[i] === word[i]) ? 'correct' : 'incorrect';
+            html += `<span class="char ${cls}">${escapeHtml(word[i])}</span>`;
+        } else {
+            html += `<span class="char extra">${escapeHtml(typedCurrent[i])}</span>`;
+        }
+    }
+    wordEl.innerHTML = html;
+}
+
+function markWordDone(index, success) {
+    const el = document.getElementById('word-' + index);
+    if (el) el.classList.add(success ? 'done-correct' : 'done-error');
+}
+
+function positionCursor() {
+    const cursor = document.getElementById('typingCursor');
+    const wordEl = document.getElementById('word-' + currentWordIndex);
+    if (!wordEl) return;
+    const chars = wordEl.querySelectorAll('.char');
+    let target;
+    if (typedCurrent.length < chars.length) {
+        target = chars[typedCurrent.length];
+    } else {
+        target = chars[chars.length - 1];
+        if (target) {
+            cursor.style.left = (target.offsetLeft + target.offsetWidth) + 'px';
+            cursor.style.top = target.offsetTop + 'px';
+            cursor.style.height = target.offsetHeight + 'px';
+            scrollToCurrentWord(wordEl);
+            return;
+        }
+    }
+    if (target) {
+        cursor.style.left = target.offsetLeft + 'px';
+        cursor.style.top = target.offsetTop + 'px';
+        cursor.style.height = target.offsetHeight + 'px';
+    }
+    scrollToCurrentWord(wordEl);
+}
+
+function scrollToCurrentWord(wordEl) {
+    const wrap = document.getElementById('wordFlowWrap');
+    const wrapHeight = wrap.clientHeight;
+    const lineHeight = wordEl.offsetHeight;
+    const target = wordEl.offsetTop - Math.max(0, wrapHeight - lineHeight * 2);
+    wrap.scrollTop = Math.max(0, target);
+}
+
+/* keystrokes */
+
+const hiddenInput = document.getElementById('hiddenInput');
+
+hiddenInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); restartSameConfig(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); backToDifficulty(); return; }
+    if (testState === 'finished') return;
+
+    if (e.key === ' ') {
+        e.preventDefault();
+        if (typedCurrent.length === 0) return;
+        ensureStarted();
+        finalizeCurrentWord();
+        moveToNextWord();
+        return;
+    }
+
+    if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (typedCurrent.length === 0) return;
+        typedCurrent = typedCurrent.slice(0, -1);
+        renderCurrentWord();
+        positionCursor();
+        return;
+    }
+
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        ensureStarted();
+        typedCurrent += e.key;
+        renderCurrentWord();
+        positionCursor();
+
+        const word = testWords[currentWordIndex];
+        if (modeType === 'words' && currentWordIndex === testWords.length - 1 && typedCurrent.length === word.length) {
+            finishTest();
+        } else if (modeType === 'time') {
+            ensureEnoughWords();
+        }
+    }
+});
+
+hiddenInput.addEventListener('blur', () => {
+    if (testState === 'running') {
+        isPaused = true;
+        pauseStart = Date.now();
+        document.getElementById('focusOverlay').classList.add('show');
+        clearInterval(liveInterval);
+    }
+});
+
+document.getElementById('wordFlowWrap').addEventListener('click', () => hiddenInput.focus());
+
+function resumeTyping() {
+    document.getElementById('focusOverlay').classList.remove('show');
+    hiddenInput.focus();
+}
+
+hiddenInput.addEventListener('focus', () => {
+    if (isPaused) {
+        pausedDuration += Date.now() - pauseStart;
+        isPaused = false;
+        document.getElementById('focusOverlay').classList.remove('show');
+        startLiveInterval();
+    }
+});
+
+function ensureStarted() {
+    if (testState === 'idle') {
+        testState = 'running';
+        startTimestamp = Date.now();
+        startLiveInterval();
+    }
+}
+
+function ensureEnoughWords() {
+    const remaining = testWords.length - currentWordIndex - 1;
+    if (remaining < 15 && testWords.length < 600) {
+        const pool = activePool();
+        if (pool.length > 0) testWords = testWords.concat(generateWords(pool, 40));
+        renderFullWordFlow();
+        for (let i = 0; i < currentWordIndex; i++) markWordDone(i, true);
+    }
+}
+
+function finalizeCurrentWord() {
+    const word = testWords[currentWordIndex];
+    const typed = typedCurrent;
+    const len = Math.min(word.length, typed.length);
+    let correct = 0;
+    for (let i = 0; i < len; i++) if (typed[i] === word[i]) correct++;
+    const attempted = typed.length;
+    totalTypedChars += attempted;
+    totalCorrectChars += correct;
+    totalErrors += (attempted - correct);
+    wordsAttemptedCount++;
+    const complete = (typed === word);
+    if (complete) wordsCorrectCount++;
+    markWordDone(currentWordIndex, complete);
+    return complete;
+}
+
+function moveToNextWord() {
+    typedCurrent = '';
+    currentWordIndex++;
+    if (currentWordIndex >= testWords.length) {
+        finishTest();
+        return;
+    }
+    positionCursor();
+    if (modeType === 'words') {
+        document.getElementById('progressValue').textContent = `${Math.min(currentWordIndex, modeValue)} / ${modeValue}`;
+    }
+}
+
+/* timer and live stats */
+
+function elapsedSeconds() {
+    if (!startTimestamp) return 0;
+    return (Date.now() - startTimestamp - pausedDuration) / 1000;
+}
+
+function startLiveInterval() {
+    clearInterval(liveInterval);
+    liveInterval = setInterval(tick, 200);
+}
+
+function tick() {
+    const elapsed = elapsedSeconds();
+
+    if (modeType === 'time') {
+        const remaining = Math.max(0, modeValue - elapsed);
+        document.getElementById('progressValue').textContent = `${Math.ceil(remaining)}s`;
+        document.getElementById('progressValue').classList.toggle('urgent', remaining <= 5 && remaining > 0);
+        if (remaining <= 0) { finishTest(); return; }
+    }
+
+    const minutes = Math.max(elapsed / 60, 1 / 600);
+    const wpm = Math.round((totalCorrectChars / 5) / minutes);
+    const acc = totalTypedChars > 0 ? Math.round((totalCorrectChars / totalTypedChars) * 100) : 100;
+    document.getElementById('liveWpm').textContent = wpm;
+    document.getElementById('liveAcc').textContent = acc + '%';
+
+    const sec = Math.floor(elapsed);
+    if (sec > lastSampledSecond) {
+        lastSampledSecond = sec;
+        samples.push({ t: sec, wpm });
+    }
+}
+
+/* end of test and results */
+
+function finishTest() {
+    if (testState === 'finished') return;
+    if (typedCurrent.length > 0) finalizeCurrentWord();
+    testState = 'finished';
+    clearInterval(liveInterval);
+    document.getElementById('progressValue').classList.remove('urgent');
+
+    const elapsed = Math.max(elapsedSeconds(), 0.05);
+    const minutes = elapsed / 60;
+    const netWpm = Math.round((totalCorrectChars / 5) / minutes);
+    const grossWpm = Math.round((totalTypedChars / 5) / minutes);
+    const accuracy = totalTypedChars > 0 ? Math.round((totalCorrectChars / totalTypedChars) * 1000) / 10 : 100;
+
+    showResults({ netWpm, grossWpm, accuracy, elapsed });
+}
+
+function configKey() {
+    const diffPart = lastConfig.diffKey === 'custom'
+        ? `custom-${lastConfig.customRange.min}-${lastConfig.customRange.max}`
+        : lastConfig.diffKey;
+    return `${diffPart}|${lastConfig.modeType}|${lastConfig.modeValue}`;
+}
+
+function loadBests() {
+    try { return JSON.parse(localStorage.getItem('typeflow_bests') || '{}'); }
+    catch (e) { return {}; }
+}
+
+function saveBests(bests) {
+    try { localStorage.setItem('typeflow_bests', JSON.stringify(bests)); } catch (e) {}
+}
+
+function loadHistory() {
+    try { return JSON.parse(localStorage.getItem('typeflow_history') || '[]'); }
+    catch (e) { return []; }
+}
+
+function saveHistoryEntry(entry) {
+    try {
+        const h = loadHistory();
+        h.unshift(entry);
+        while (h.length > 30) h.pop();
+        localStorage.setItem('typeflow_history', JSON.stringify(h));
+    } catch (e) {}
+}
+
+function showResults(r) {
+    const key = configKey();
+    const bests = loadBests();
+    const prevBest = bests[key];
+    const isRecord = !prevBest || r.netWpm > prevBest.wpm;
+
+    if (isRecord) {
+        bests[key] = { wpm: r.netWpm, accuracy: r.accuracy, date: Date.now() };
+        saveBests(bests);
+    }
+
+    const diffLabel = lastConfig.diffKey === 'custom'
+        ? difficultyLabel('custom', lastConfig.customRange)
+        : difficultyLabel(lastConfig.diffKey);
+    const modeLabel = lastConfig.modeType === 'time' ? `${lastConfig.modeValue}s` : `${lastConfig.modeValue} ${t('words_unit')}`;
+
+    saveHistoryEntry({ date: Date.now(), diffLabel, modeLabel, wpm: r.netWpm, accuracy: r.accuracy });
+
+    document.getElementById('resWpm').textContent = r.netWpm;
+    document.getElementById('resUnitLabel').textContent = t('results_unit');
+    document.getElementById('resGross').textContent = tf('results_gross', { n: r.grossWpm });
+    document.getElementById('resRecord').innerHTML = isRecord
+        ? `<span class="record-badge">${t('results_record')}</span>` : '';
+
+    document.getElementById('resAcc').textContent = r.accuracy + '%';
+    const m = Math.floor(r.elapsed / 60), s = Math.round(r.elapsed % 60);
+    document.getElementById('resDuration').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    document.getElementById('resWords').textContent = `${wordsCorrectCount} / ${wordsAttemptedCount}`;
+    document.getElementById('resChars').textContent = fmt(totalTypedChars);
+    document.getElementById('resErrors').textContent = fmt(totalErrors);
+    document.getElementById('resBest').textContent = prevBest ? `${prevBest.wpm} ${t('stat_wpm')}` : '—';
+
+    document.getElementById('resChartContainer').innerHTML = buildChartSVG(samples);
+
+    document.getElementById('resultsModal').classList.add('open');
+}
+
+function buildChartSVG(samples) {
+    if (samples.length < 2) return '';
+    const w = 540, h = 90, pad = 8;
+    const maxWpm = Math.max(...samples.map(s => s.wpm), 10);
+    const stepX = (w - 2 * pad) / (samples.length - 1);
+    const points = samples.map((s, i) => {
+        const x = pad + i * stepX;
+        const y = h - pad - (s.wpm / maxWpm) * (h - 2 * pad);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    return `<svg viewBox="0 0 ${w} ${h}" class="wpm-chart" preserveAspectRatio="none">
+        <polyline points="${points}" style="fill:none;stroke:var(--favorite);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;" />
+    </svg>`;
+}
+
+function exportResult() {
+    const diffLabel = lastConfig.diffKey === 'custom'
+        ? difficultyLabel('custom', lastConfig.customRange)
+        : difficultyLabel(lastConfig.diffKey);
+    const modeLabel = lastConfig.modeType === 'time' ? tf('mode_seconds', { n: lastConfig.modeValue }) : `${lastConfig.modeValue} ${t('words_unit')}`;
+    const text = [
+        t('export_title'),
+        '',
+        `${t('export_date')}: ${new Date().toLocaleString(t('locale'))}`,
+        `${t('export_diff')}: ${diffLabel}`,
+        `${t('export_mode')}: ${modeLabel}`,
+        `${t('export_wpm')}: ${document.getElementById('resWpm').textContent}`,
+        `${t('export_acc')}: ${document.getElementById('resAcc').textContent}`,
+        `${t('export_duration')}: ${document.getElementById('resDuration').textContent}`,
+        `${t('export_words')}: ${document.getElementById('resWords').textContent}`,
+        `${t('export_chars')}: ${document.getElementById('resChars').textContent}`,
+        `${t('export_errors')}: ${document.getElementById('resErrors').textContent}`
+    ].join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `typeflow_result_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* history */
+
+function showHistory() {
+    const h = loadHistory();
+    const list = document.getElementById('historyList');
+    if (h.length === 0) {
+        list.innerHTML = `<div class="history-empty">${t('history_empty')}</div>`;
+    } else {
+        list.innerHTML = h.map(entry => {
+            const d = new Date(entry.date);
+            const dateStr = d.toLocaleDateString(t('locale')) + ' ' + d.toLocaleTimeString(t('locale'), { hour: '2-digit', minute: '2-digit' });
+            return `<div class="history-row">
+                <span>${entry.diffLabel} · ${entry.modeLabel}<br><span class="h-meta">${dateStr}</span></span>
+                <span class="h-wpm">${entry.wpm} ${t('stat_wpm')} · ${entry.accuracy}%</span>
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('historyModal').classList.add('open');
+}
+
+function closeHistory() {
+    document.getElementById('historyModal').classList.remove('open');
+}
+
+/* close modals on outside click */
+
+['customModal', 'resultsModal', 'historyModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', (e) => {
+        if (e.target.id === id) e.target.classList.remove('open');
+    });
+});
+</script>
+</body>
+</html>
